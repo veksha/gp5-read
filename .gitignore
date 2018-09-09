@@ -1,0 +1,6 @@
+/bin
+/obj
+*.depend
+*.layout
+/test file/*
+!/test file/metallica.gp5
