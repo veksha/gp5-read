@@ -32,7 +32,6 @@
 		</Build>
 		<Compiler>
 			<Add option="-pedantic" />
-			<Add option="-Wextra" />
 			<Add option="-fexceptions" />
 		</Compiler>
 		<Linker>
