@@ -388,6 +388,9 @@ void MyApp::ReadGP5(string fileName)
     }
     inFile.seekg(1,ios_base::cur); // unknown
 
+
+    iNoteCount = 0; // reset note counter from last file
+
     //Read measures
     for (int i = 0; i < measures; i++) {
         for (int j = 0; j < tracks; j++) {
