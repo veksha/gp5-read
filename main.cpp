@@ -4,6 +4,8 @@
 #include <fstream>
 #include <string.h>
 #include <vector>
+#include "wx/wx.h"
+
 
 using namespace std;
 
@@ -125,24 +127,71 @@ string cp1251_to_utf8(string s) {
    return ns;
 }
 
-int main(int argc, char *argv[]) {
+class MyApp : public wxApp
+{
+public:
+    virtual bool OnInit();
+};
+
+class MyFrame : public wxFrame
+{
+public:
+    MyFrame();
+private:
+    void OnExit(wxCommandEvent& event);
+};
+
+wxIMPLEMENT_APP(MyApp);
+
+bool MyApp::OnInit()
+{
+    MyFrame *frame = new MyFrame();
+
+    wxStaticText *StaticText1 = new wxStaticText(frame, wxID_ANY, "Artist:", wxDefaultPosition, wxDefaultSize);
+    wxStaticText *StaticText2 = new wxStaticText(frame, wxID_ANY, "Title:", wxDefaultPosition, wxDefaultSize);
+    wxFont *StaticTextFont = new wxFont(wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT));
+    StaticTextFont->SetPointSize(20);
+    StaticText1->SetFont(*StaticTextFont);
+    StaticText2->SetFont(*StaticTextFont);
+    wxTextCtrl *txtArtist = new wxTextCtrl(frame, wxID_ANY, "", wxDefaultPosition, wxSize(350,22));
+    wxTextCtrl *txtTitle = new wxTextCtrl(frame, wxID_ANY, "", wxDefaultPosition, wxSize(350,22));
+
+    frame->SetSize(wxSize(800, 600));
+    frame->Centre();
+
+    wxBoxSizer *BoxSizer1 = new wxBoxSizer(wxHORIZONTAL);
+    wxBoxSizer *BoxSizer2 = new wxBoxSizer(wxVERTICAL);
+    wxBoxSizer *BoxSizer3 = new wxBoxSizer(wxVERTICAL);
+    BoxSizer2->Add(StaticText1, 0, wxALL |wxALIGN_LEFT, 10);
+    BoxSizer3->Add(StaticText2, 0, wxALL |wxALIGN_LEFT, 10);
+    BoxSizer2->Add(txtArtist, 0, wxALL|wxALIGN_RIGHT, 10);
+    BoxSizer3->Add(txtTitle, 0, wxALL|wxALIGN_RIGHT, 10);
+    BoxSizer1->Add(BoxSizer2);
+    BoxSizer1->Add(BoxSizer3);
+    frame->SetSizer(BoxSizer1);
+    frame->Show(true);
+
+    wxString msg;
+
     if (argc < 2)
     {
-        cout << "No file specified." << endl;
-        return 0;
+        msg = "No file specified as command line argument."; cout << msg << endl; frame->SetStatusText(msg);
+        return true;
     }
 
     ////do not convert ANSI (1251) codepage to UTF-8
-    //UTF8mode = false;
+    UTF8mode = false;
 
-    cout << "Reading file: " << argv[1] << endl;
+    msg = wxString::Format("Reading file: %s",argv[1]); cout << msg << endl; frame->SetStatusText(msg);
+
 
 
     inFile.open(argv[1], ios::binary | ios::in);
 
     if (inFile.fail()) {
-        cerr << "Can't open file: " << strerror(errno);
-        return 1;
+        msg = wxString::Format("Can't open file: %s",strerror(errno));
+        cerr << msg; frame->SetStatusText(msg);
+        return true;
     }
 
     string sVersion = readByteText();
@@ -150,7 +199,7 @@ int main(int argc, char *argv[]) {
     if (sVersion.compare("FICHIER GUITAR PRO v5.10") != 0)
     {
         cerr << "Unsupported." << endl;
-        return 0;
+        return true;
     }
     inFile.seekg(30-length1.b,ios_base::cur);
 
@@ -174,6 +223,9 @@ int main(int argc, char *argv[]) {
     infoItem.i = 6; infoItem.text = cp1251_to_utf8(sCopyright); info.push_back(infoItem);
     infoItem.i = 7; infoItem.text = cp1251_to_utf8(sTab); info.push_back(infoItem);
     infoItem.i = 8; infoItem.text = cp1251_to_utf8(sInstructions); info.push_back(infoItem);
+
+    txtArtist->SetValue(info[Artist].text);
+    txtTitle->SetValue(info[Title].text);
 
     printf("Artist: %s\nTitle: %s\n",
            info[Artist].text.c_str(),
@@ -492,10 +544,19 @@ int main(int argc, char *argv[]) {
     }
     //done reading file;
     inFile.close();
-    cout << "Note count: " << iNoteCount << endl;
+    msg = wxString::Format("Done. Note count: %d",iNoteCount); cout << msg << endl; frame->SetStatusText(msg);
 
-
-
-    return 0;
+    return true;
 }
 
+MyFrame::MyFrame()
+        : wxFrame(NULL, wxID_ANY, "GP5 Reader")
+{
+    CreateStatusBar();
+    SetStatusText("ready");
+}
+
+void MyFrame::OnExit(wxCommandEvent& event)
+{
+    Close(true);
+}

@@ -11,33 +11,81 @@
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
+				<Option use_console_runner="0" />
 				<Option parameters='&quot;test file\metallica.gp5&quot;' />
 				<Compiler>
 					<Add option="-g" />
+					<Add directory="../wxWidgets-git/lib/gcc_lib/mswud" />
 				</Compiler>
+				<Linker>
+					<Add library="wxmsw31ud_core" />
+					<Add library="wxbase31ud" />
+					<Add library="wxtiffd" />
+					<Add library="wxjpegd" />
+					<Add library="wxpngd" />
+					<Add library="wxzlibd" />
+					<Add library="wxregexud" />
+					<Add library="uuid" />
+					<Add library="gdi32" />
+					<Add library="comdlg32" />
+					<Add library="winspool" />
+					<Add library="comctl32" />
+					<Add library="ole32" />
+					<Add library="shlwapi" />
+					<Add library="oleaut32" />
+					<Add library="version" />
+					<Add library="oleacc" />
+					<Add library="uxtheme" />
+				</Linker>
 			</Target>
 			<Target title="Release">
 				<Option output="bin/Release/GP5_reader" prefix_auto="1" extension_auto="1" />
 				<Option object_output="obj/Release/" />
-				<Option type="1" />
+				<Option type="0" />
 				<Option compiler="gcc" />
 				<Option parameters='&quot;test file\metallica.gp5&quot;' />
 				<Compiler>
 					<Add option="-O2" />
+					<Add option="-DNDEBUG" />
+					<Add directory="../wxWidgets-git/lib/gcc_lib/mswu" />
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
+					<Add library="wxmsw31u_core" />
+					<Add library="wxbase31u" />
+					<Add library="wxtiff" />
+					<Add library="wxjpeg" />
+					<Add library="wxpng" />
+					<Add library="wxzlib" />
+					<Add library="wxregexu" />
+					<Add library="uuid" />
+					<Add library="gdi32" />
+					<Add library="comdlg32" />
+					<Add library="winspool" />
+					<Add library="comctl32" />
+					<Add library="ole32" />
+					<Add library="shlwapi" />
+					<Add library="oleaut32" />
+					<Add library="version" />
+					<Add library="oleacc" />
+					<Add library="uxtheme" />
 				</Linker>
 			</Target>
 		</Build>
 		<Compiler>
-			<Add option="-pedantic" />
 			<Add option="-fexceptions" />
+			<Add option="-D__WXMSW__" />
+			<Add option="-D_UNICODE" />
+			<Add directory="../wxWidgets-git/include" />
 		</Compiler>
+		<ResourceCompiler>
+			<Add directory="../wxWidgets-git/include" />
+		</ResourceCompiler>
 		<Linker>
 			<Add option="-static-libstdc++" />
 			<Add option="-static-libgcc" />
 			<Add option="-static" />
+			<Add directory="../wxWidgets-git/lib/gcc_lib" />
 		</Linker>
 		<Unit filename="main.cpp" />
 		<Extensions>
