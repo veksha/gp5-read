@@ -1,0 +1,33 @@
+version: 1.0.{build}
+
+image: Visual Studio 2015
+
+environment:
+  WXWIDGETS_ROOT_DIR: C:\projects\wxWidgets
+  WXWIDGETS_LIBS_DIR: C:\projects\wxWidgets\lib\gcc510TDM_dll
+  WXWIDGETS_INCLUDE_DIR: C:\projects\wxWidgets\include
+  WXWIDGETS_LIBS_LINK: https://github.com/wxWidgets/wxWidgets/releases/download/v3.1.1/wxMSW-3.1.1_gcc510TDM_Dev.7z
+  WXWIDGETS_HEADERS_LINK: https://github.com/wxWidgets/wxWidgets/releases/download/v3.1.1/wxWidgets-3.1.1-headers.7z
+
+install:
+  - mkdir C:\projects\download
+  - cd C:\projects\download
+
+  - appveyor DownloadFile "%WXWIDGETS_LIBS_LINK%" -FileName wxMSW-3.1.1_Dev.7z
+  - 7z x wxMSW-3.1.1_Dev.7z -oC:\projects\wxWidgets > nul
+  - appveyor DownloadFile "%WXWIDGETS_HEADERS_LINK%" wxWidgets-3.1.1-headers.7z
+  - 7z x wxWidgets-3.1.1-headers.7z -oC:\projects\wxWidgets > nul
+ 
+
+build_script:
+  - cd %APPVEYOR_BUILD_FOLDER%
+  - appveyor.bat
+
+after_build:
+  - copy "%WXWIDGETS_LIBS_DIR%\wxbase311u_gcc510TDM.dll" bin\Release\
+  - copy "%WXWIDGETS_LIBS_DIR%\wxmsw311u_core_gcc510TDM.dll" bin\Release\
+  - 7z a -r GP5_reader.zip bin\Release\*.*
+
+artifacts:
+  - path: GP5_reader.zip
+    name: GP5_reader x86 binary

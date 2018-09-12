@@ -11,30 +11,30 @@ AR = ar.exe
 LD = g++.exe
 WINDRES = windres.exe
 
-INC = 
-CFLAGS = -pedantic -Wextra -fexceptions
+INC = -I$(WXWIDGETS_INCLUDE_DIR)
+CFLAGS = -fexceptions -D__WXMSW__ -D_UNICODE
 RESINC = 
-LIBDIR = 
+LIBDIR = -L$(WXWIDGETS_LIBS_DIR)
 LIB = 
-LDFLAGS = -static -static-libgcc -static-libstdc++
+LDFLAGS = -static-libstdc++ -static-libgcc -static
 
-INC_DEBUG = $(INC)
+INC_DEBUG = $(INC) -I$(WXWIDGETS_LIBS_DIR)\mswud
 CFLAGS_DEBUG = $(CFLAGS) -g
 RESINC_DEBUG = $(RESINC)
 RCFLAGS_DEBUG = $(RCFLAGS)
 LIBDIR_DEBUG = $(LIBDIR)
-LIB_DEBUG = $(LIB)
+LIB_DEBUG = $(LIB)-lwxmsw31ud_core -lwxbase31ud -lwxtiffd -lwxjpegd -lwxpngd -lwxzlibd -lwxregexud -luuid -lgdi32 -lcomdlg32 -lwinspool -lcomctl32 -lole32 -lshlwapi -loleaut32 -lversion -loleacc -luxtheme
 LDFLAGS_DEBUG = $(LDFLAGS)
 OBJDIR_DEBUG = obj\\Debug
 DEP_DEBUG = 
 OUT_DEBUG = bin\\Debug\\GP5_reader.exe
 
-INC_RELEASE = $(INC)
-CFLAGS_RELEASE = $(CFLAGS) -O2
+INC_RELEASE = $(INC) -I$(WXWIDGETS_LIBS_DIR)\mswu
+CFLAGS_RELEASE = $(CFLAGS) -O2 -DNDEBUG
 RESINC_RELEASE = $(RESINC)
 RCFLAGS_RELEASE = $(RCFLAGS)
 LIBDIR_RELEASE = $(LIBDIR)
-LIB_RELEASE = $(LIB)
+LIB_RELEASE = $(LIB)-lwxmsw31u_core -lwxbase31u -lwxtiff -lwxjpeg -lwxpng -lwxzlib -lwxregexu -luuid -lgdi32 -lcomdlg32 -lwinspool -lcomctl32 -lole32 -lshlwapi -loleaut32 -lversion -loleacc -luxtheme
 LDFLAGS_RELEASE = $(LDFLAGS) -s
 OBJDIR_RELEASE = obj\\Release
 DEP_RELEASE = 
@@ -76,7 +76,7 @@ after_release:
 release: before_release out_release after_release
 
 out_release: before_release $(OBJ_RELEASE) $(DEP_RELEASE)
-	$(LD) $(LIBDIR_RELEASE) -o $(OUT_RELEASE) $(OBJ_RELEASE)  $(LDFLAGS_RELEASE) $(LIB_RELEASE)
+	$(LD) $(LIBDIR_RELEASE) -o $(OUT_RELEASE) $(OBJ_RELEASE)  $(LDFLAGS_RELEASE) -mwindows $(LIB_RELEASE)
 
 $(OBJDIR_RELEASE)\\main.o: main.cpp
 	$(CXX) $(CFLAGS_RELEASE) $(INC_RELEASE) -c main.cpp -o $(OBJDIR_RELEASE)\\main.o
