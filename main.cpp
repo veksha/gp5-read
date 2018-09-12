@@ -12,6 +12,11 @@
 using namespace std;
 
 bool UTF8mode = true;
+enum ImportFormat {v500, v510};
+string formatVersions[2] = {
+    "FICHIER GUITAR PRO v5.00",  // import only
+    "FICHIER GUITAR PRO v5.10"}; // main format
+ImportFormat importFormat = v510;
 
 union CharUByte {
     char    c;
@@ -188,7 +193,7 @@ bool MyApp::OnInit()
 
     if (argc < 2)
     {
-        msg = "No file specified as command line argument."; cout << msg << endl; m_frame->SetStatusText(msg);
+        msg = "Hello. Please, drag and drop GP5 file or specify it via command line parameter."; cout << msg << endl; m_frame->SetStatusText(msg);
         return true;
     }
 
@@ -217,12 +222,16 @@ void MyApp::ReadGP5(string fileName)
 
     string sVersion = readByteText().substr(0, 24);
     cout << "File version: " << sVersion << endl;
-    if (sVersion.compare("FICHIER GUITAR PRO v5.10") != 0)
-    {
+    if (sVersion.compare(formatVersions[v510]) == 0)
+        importFormat = v510;
+    else
+    if (sVersion.compare(formatVersions[v500]) == 0)
+        importFormat = v500;
+    else {
         inFile.close();
         msg = wxString::Format("Unsupported file format: %s",fileName);
         cerr << msg << endl; m_frame->SetStatusText(msg);
-        cerr << "Expected: \tFICHIER GUITAR PRO v5.10" << endl;
+        cerr << "Expected: \t" << formatVersions[v510] << " or " << formatVersions[v500] << endl;
         cerr << "Got: \t\t" << sVersion << endl;
         return;
     }
@@ -284,7 +293,10 @@ void MyApp::ReadGP5(string fileName)
     }
 
     // skip some bytes (page setup checkboxes?)
-    inFile.seekg(49,ios_base::cur);
+    if (importFormat == v500)
+        inFile.seekg(30,ios_base::cur);
+    else // v510
+        inFile.seekg(49,ios_base::cur);
 
     // Read page setup
     for (int i = 0; i < 11; i++) {
@@ -295,7 +307,10 @@ void MyApp::ReadGP5(string fileName)
     inFile.read(length4.c, 4); int tempo = length4.i;
     cout << "Tempo: " << tempo << endl;
 
-    inFile.seekg(1,ios_base::cur);
+    if (importFormat == v500) {
+        // nothing
+    } else // v510
+        inFile.seekg(1,ios_base::cur); // unknown
 
     inFile.read(length4.c, 4); int key = length4.i;             //cout << "Key: " << key << endl;
     inFile.read(&length1.c, 1); uint8_t octave = length1.b;     //cout << "Octave: " << +octave << endl;
@@ -357,8 +372,13 @@ void MyApp::ReadGP5(string fileName)
     int stringCount, tuning;
     for (int i = 1; i <= tracks; i++) {
         inFile.seekg(1,ios_base::cur); // unknown
-        if (i == 1) {
-            inFile.seekg(1,ios_base::cur); // unknown
+
+        if (importFormat == v500) {
+            inFile.seekg(1,ios_base::cur);  // unknown
+        }
+        else { // v510
+            if (i == 1)
+                inFile.seekg(1,ios_base::cur);  // unknown
         }
 
         inFile.read(&length1.c, 1); // track name string length
@@ -381,12 +401,20 @@ void MyApp::ReadGP5(string fileName)
         inFile.seekg(4,ios_base::cur); // int iTrackOffset;
         inFile.seekg(3,ios_base::cur); // 3 bytes - RGB
         inFile.seekg(1,ios_base::cur); // unknown
-        inFile.seekg(49,ios_base::cur); // unknown
 
-        readIntByteText();
-        readIntByteText();
+        if (importFormat == v500) {
+            inFile.seekg(44,ios_base::cur); // unknown
+        }
+        else { // v510
+            inFile.seekg(49,ios_base::cur); // unknown
+            readIntByteText();
+            readIntByteText();
+        }
     }
-    inFile.seekg(1,ios_base::cur); // unknown
+    if (importFormat == v500)
+        inFile.seekg(2,ios_base::cur); // unknown
+    else // v510
+        inFile.seekg(1,ios_base::cur); // unknown
 
 
     iNoteCount = 0; // reset note counter from last file
@@ -475,10 +503,21 @@ void MyApp::ReadGP5(string fileName)
                         if ((int8_t)bPhaser >= 0) inFile.seekg(1,ios_base::cur); // unknown
                         if ((int8_t)bTremolo >= 0) inFile.seekg(1,ios_base::cur); // unknown
 
-                        if (tempoValue >= 0) inFile.seekg(2,ios_base::cur); // unknown
+                        if (tempoValue >= 0)
+                        {
+                            if (importFormat == v500)
+                                inFile.seekg(1,ios_base::cur); // unknown
+                            else // v510
+                                inFile.seekg(2,ios_base::cur); // unknown
+                        }
                         inFile.seekg(2,ios_base::cur); // unknown
-                        readIntByteText();
-                        readIntByteText();
+                        if (importFormat == v500) {
+                            // nothing
+                        } else  // v510
+                        {
+                            readIntByteText();
+                            readIntByteText();
+                        }
                     }
 
                     inFile.read(&length1.c, 1); uint8_t stringFlags = length1.b;
