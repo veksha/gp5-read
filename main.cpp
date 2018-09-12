@@ -201,20 +201,29 @@ void MyApp::ReadGP5(string fileName)
 {
     wxString msg;
 
+    // be sure that previous file is closed before opening new one
+    wxASSERT(!inFile.is_open());
+    if (inFile.is_open())
+        inFile.close();
+
     msg = wxString::Format("Reading file: %s",fileName); cout << msg << endl; m_frame->SetStatusText(msg);
     inFile.open(fileName.c_str(), ios::binary | ios::in);
 
     if (inFile.fail()) {
         msg = wxString::Format("Can't open file: %s",strerror(errno));
-        cerr << msg; m_frame->SetStatusText(msg);
+        cerr << msg << endl; m_frame->SetStatusText(msg);
         return;
     }
 
-    string sVersion = readByteText();
+    string sVersion = readByteText().substr(0, 24);
     cout << "File version: " << sVersion << endl;
     if (sVersion.compare("FICHIER GUITAR PRO v5.10") != 0)
     {
-        cerr << "Unsupported." << endl;
+        inFile.close();
+        msg = wxString::Format("Unsupported file format: %s",fileName);
+        cerr << msg << endl; m_frame->SetStatusText(msg);
+        cerr << "Expected: \tFICHIER GUITAR PRO v5.10" << endl;
+        cerr << "Got: \t\t" << sVersion << endl;
         return;
     }
 
