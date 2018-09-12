@@ -4,7 +4,9 @@
 #include <fstream>
 #include <string.h>
 #include <vector>
-#include "wx/wx.h"
+#include <wx/wx.h>
+#include <wx/dir.h>
+#include <wx/busyinfo.h>
 
 
 using namespace std;
@@ -127,37 +129,48 @@ string cp1251_to_utf8(string s) {
    return ns;
 }
 
-class MyApp : public wxApp
-{
-public:
-    virtual bool OnInit();
-};
-
 class MyFrame : public wxFrame
 {
 public:
     MyFrame();
 private:
     void OnExit(wxCommandEvent& event);
+    void OnDropFiles(wxDropFilesEvent& event);
 };
 
+
+class MyApp : public wxApp
+{
+private:
+    MyFrame *m_frame;
+    wxTextCtrl *txtArtist;
+    wxTextCtrl *txtTitle;
+public:
+    void ReadGP5(string fileName);
+    virtual bool OnInit();
+};
+
+wxDECLARE_APP(MyApp);
 wxIMPLEMENT_APP(MyApp);
 
 bool MyApp::OnInit()
 {
-    MyFrame *frame = new MyFrame();
+    ////do not convert ANSI (1251) codepage to UTF-8
+    UTF8mode = false;
 
-    wxStaticText *StaticText1 = new wxStaticText(frame, wxID_ANY, "Artist:", wxDefaultPosition, wxDefaultSize);
-    wxStaticText *StaticText2 = new wxStaticText(frame, wxID_ANY, "Title:", wxDefaultPosition, wxDefaultSize);
+    m_frame = new MyFrame();
+
+    wxStaticText *StaticText1 = new wxStaticText(m_frame, wxID_ANY, "Artist:", wxDefaultPosition, wxDefaultSize);
+    wxStaticText *StaticText2 = new wxStaticText(m_frame, wxID_ANY, "Title:", wxDefaultPosition, wxDefaultSize);
     wxFont *StaticTextFont = new wxFont(wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT));
     StaticTextFont->SetPointSize(20);
     StaticText1->SetFont(*StaticTextFont);
     StaticText2->SetFont(*StaticTextFont);
-    wxTextCtrl *txtArtist = new wxTextCtrl(frame, wxID_ANY, "", wxDefaultPosition, wxSize(350,22));
-    wxTextCtrl *txtTitle = new wxTextCtrl(frame, wxID_ANY, "", wxDefaultPosition, wxSize(350,22));
+    txtArtist = new wxTextCtrl(m_frame, wxID_ANY, "", wxDefaultPosition, wxSize(350,22));
+    txtTitle = new wxTextCtrl(m_frame, wxID_ANY, "", wxDefaultPosition, wxSize(350,22));
 
-    frame->SetSize(wxSize(800, 600));
-    frame->Centre();
+    m_frame->SetSize(wxSize(800, 600));
+    m_frame->Centre();
 
     wxBoxSizer *BoxSizer1 = new wxBoxSizer(wxHORIZONTAL);
     wxBoxSizer *BoxSizer2 = new wxBoxSizer(wxVERTICAL);
@@ -168,30 +181,33 @@ bool MyApp::OnInit()
     BoxSizer3->Add(txtTitle, 0, wxALL|wxALIGN_RIGHT, 10);
     BoxSizer1->Add(BoxSizer2);
     BoxSizer1->Add(BoxSizer3);
-    frame->SetSizer(BoxSizer1);
-    frame->Show(true);
+    m_frame->SetSizer(BoxSizer1);
+    m_frame->Show(true);
 
     wxString msg;
 
     if (argc < 2)
     {
-        msg = "No file specified as command line argument."; cout << msg << endl; frame->SetStatusText(msg);
+        msg = "No file specified as command line argument."; cout << msg << endl; m_frame->SetStatusText(msg);
         return true;
     }
 
-    ////do not convert ANSI (1251) codepage to UTF-8
-    UTF8mode = false;
+    ReadGP5((string)argv[1]);
 
-    msg = wxString::Format("Reading file: %s",argv[1]); cout << msg << endl; frame->SetStatusText(msg);
+    return true;
+}
 
+void MyApp::ReadGP5(string fileName)
+{
+    wxString msg;
 
-
-    inFile.open(argv[1], ios::binary | ios::in);
+    msg = wxString::Format("Reading file: %s",fileName); cout << msg << endl; m_frame->SetStatusText(msg);
+    inFile.open(fileName.c_str(), ios::binary | ios::in);
 
     if (inFile.fail()) {
         msg = wxString::Format("Can't open file: %s",strerror(errno));
-        cerr << msg; frame->SetStatusText(msg);
-        return true;
+        cerr << msg; m_frame->SetStatusText(msg);
+        return;
     }
 
     string sVersion = readByteText();
@@ -199,8 +215,13 @@ bool MyApp::OnInit()
     if (sVersion.compare("FICHIER GUITAR PRO v5.10") != 0)
     {
         cerr << "Unsupported." << endl;
-        return true;
+        return;
     }
+
+    // start reading file
+    info.clear(); vTracks.clear(); lyrics.clear();
+    m_frame->SetTitle(fileName);
+
     inFile.seekg(30-length1.b,ios_base::cur);
 
     string sTitle = readIntByteText();
@@ -544,16 +565,43 @@ bool MyApp::OnInit()
     }
     //done reading file;
     inFile.close();
-    msg = wxString::Format("Done. Note count: %d",iNoteCount); cout << msg << endl; frame->SetStatusText(msg);
-
-    return true;
+    msg = wxString::Format("Done. Note count: %d",iNoteCount); cout << msg << endl; m_frame->SetStatusText(msg);
 }
 
 MyFrame::MyFrame()
         : wxFrame(NULL, wxID_ANY, "GP5 Reader")
 {
+    DragAcceptFiles(true);
+    Connect(wxEVT_DROP_FILES, wxDropFilesEventHandler(MyFrame::OnDropFiles), NULL, this);
     CreateStatusBar();
     SetStatusText("ready");
+}
+
+void MyFrame::OnDropFiles(wxDropFilesEvent& event)
+{
+if (event.GetNumberOfFiles() > 0) {
+
+            wxString* dropped = event.GetFiles();
+            wxASSERT(dropped);
+
+            wxBusyCursor busyCursor;
+            wxWindowDisabler disabler;
+            wxBusyInfo busyInfo(_("Adding files, wait please..."));
+
+            wxString name;
+            wxArrayString files;
+
+            for (int i = 0; i < event.GetNumberOfFiles(); i++) {
+                name = dropped[i];
+                if (wxFileExists(name))
+                    files.push_back(name);
+                else if (wxDirExists(name))
+                    wxDir::GetAllFiles(name, &files);
+            }
+
+            wxGetApp().ReadGP5((string)files[0]);
+
+        }
 }
 
 void MyFrame::OnExit(wxCommandEvent& event)
