@@ -8,7 +8,6 @@
 #include <wx/dir.h>
 #include <wx/busyinfo.h>
 
-
 using namespace std;
 
 bool UTF8mode = true;
@@ -47,7 +46,7 @@ struct IntIntTextItem {
 };
 vector<IntIntTextItem> lyrics;
 vector<IntIntTextItem> vTracks;
-int iNoteCount = 0;
+int iNoteCount, iMeasureCount = 0;
 
 string readIntByteText() {
     string result;
@@ -134,6 +133,53 @@ string cp1251_to_utf8(string s) {
    return ns;
 }
 
+class wxCustomButton : public wxPanel
+{
+
+    bool pressedDown;
+    wxString text;
+
+    static const int buttonWidth = 340;
+    static const int buttonHeight = 50;
+
+public:
+    wxCustomButton(wxFrame* parent, wxString text);
+
+    void paintEvent(wxPaintEvent & evt);
+    void paintNow();
+
+    void render(wxDC& dc);
+
+    // some useful events
+    void mouseMoved(wxMouseEvent& event);
+    void mouseDown(wxMouseEvent& event);
+    void mouseWheelMoved(wxMouseEvent& event);
+    void mouseReleased(wxMouseEvent& event);
+    void rightClick(wxMouseEvent& event);
+    void mouseLeftWindow(wxMouseEvent& event);
+    void keyPressed(wxKeyEvent& event);
+    void keyReleased(wxKeyEvent& event);
+
+private:
+    wxDECLARE_EVENT_TABLE();
+};
+
+wxBEGIN_EVENT_TABLE(wxCustomButton, wxPanel)
+
+    EVT_MOTION(wxCustomButton::mouseMoved)
+    EVT_LEFT_DOWN(wxCustomButton::mouseDown)
+    EVT_LEFT_UP(wxCustomButton::mouseReleased)
+    EVT_RIGHT_DOWN(wxCustomButton::rightClick)
+    EVT_LEAVE_WINDOW(wxCustomButton::mouseLeftWindow)
+    EVT_KEY_DOWN(wxCustomButton::keyPressed)
+    EVT_KEY_UP(wxCustomButton::keyReleased)
+    EVT_MOUSEWHEEL(wxCustomButton::mouseWheelMoved)
+
+    // catch paint events
+    EVT_PAINT(wxCustomButton::paintEvent)
+
+wxEND_EVENT_TABLE()
+
 class MyFrame : public wxFrame
 {
 public:
@@ -150,6 +196,8 @@ private:
     MyFrame *m_frame;
     wxTextCtrl *txtArtist;
     wxTextCtrl *txtTitle;
+
+    wxCustomButton* measureMap;
 public:
     void ReadGP5(string fileName);
     virtual bool OnInit();
@@ -174,19 +222,25 @@ bool MyApp::OnInit()
     txtArtist = new wxTextCtrl(m_frame, wxID_ANY, "", wxDefaultPosition, wxSize(350,22));
     txtTitle = new wxTextCtrl(m_frame, wxID_ANY, "", wxDefaultPosition, wxSize(350,22));
 
-    m_frame->SetSize(wxSize(800, 600));
+    m_frame->SetSize(wxSize(600, 300));
     m_frame->Centre();
 
     wxBoxSizer *BoxSizer1 = new wxBoxSizer(wxHORIZONTAL);
     wxBoxSizer *BoxSizer2 = new wxBoxSizer(wxVERTICAL);
     wxBoxSizer *BoxSizer3 = new wxBoxSizer(wxVERTICAL);
+    wxBoxSizer *BoxSizer4 = new wxBoxSizer(wxVERTICAL);
     BoxSizer2->Add(StaticText1, 0, wxALL |wxALIGN_LEFT, 10);
     BoxSizer3->Add(StaticText2, 0, wxALL |wxALIGN_LEFT, 10);
     BoxSizer2->Add(txtArtist, 0, wxALL|wxALIGN_RIGHT, 10);
     BoxSizer3->Add(txtTitle, 0, wxALL|wxALIGN_RIGHT, 10);
     BoxSizer1->Add(BoxSizer2);
     BoxSizer1->Add(BoxSizer3);
-    m_frame->SetSizer(BoxSizer1);
+    BoxSizer4->Add(BoxSizer1);
+
+    measureMap = new wxCustomButton( m_frame, "" );
+    BoxSizer4->Add(measureMap, 0, wxALL|wxALIGN_CENTER_HORIZONTAL, 5);
+
+    m_frame->SetSizer(BoxSizer4);
     m_frame->Show(true);
 
     wxString msg;
@@ -328,6 +382,7 @@ void MyApp::ReadGP5(string fileName)
     inFile.read(length4.c, 4); int measures = length4.i;         cout << "Measures: " << measures << endl;
     inFile.read(length4.c, 4); int tracks = length4.i;           cout << "Tracks: " << tracks << endl;
 
+    iMeasureCount = measures;
 
     // Read measure headers
     for (int i = 0; i < measures; i++) {
@@ -617,6 +672,8 @@ void MyApp::ReadGP5(string fileName)
     //done reading file;
     inFile.close();
     msg = wxString::Format("Done. Note count: %d",iNoteCount); cout << msg << endl; m_frame->SetStatusText(msg);
+
+    measureMap->paintNow();
 }
 
 MyFrame::MyFrame()
@@ -637,7 +694,7 @@ if (event.GetNumberOfFiles() > 0) {
 
             wxBusyCursor busyCursor;
             wxWindowDisabler disabler;
-            wxBusyInfo busyInfo(_("Adding files, wait please..."));
+            //wxBusyInfo busyInfo(_("Adding files, wait please..."));
 
             wxString name;
             wxArrayString files;
@@ -659,3 +716,136 @@ void MyFrame::OnExit(wxCommandEvent& event)
 {
     Close(true);
 }
+
+wxCustomButton::wxCustomButton(wxFrame* parent, wxString text) :
+ wxPanel(parent, wxID_ANY)
+{
+    SetMinSize( wxSize(buttonWidth, buttonHeight) );
+    this->text = text;
+    pressedDown = false;
+}
+
+/*
+ * Called by the system of by wxWidgets when the panel needs
+ * to be redrawn. You can also trigger this call by
+ * calling Refresh()/Update().
+ */
+
+void wxCustomButton::paintEvent(wxPaintEvent & evt)
+{
+    // depending on your system you may need to look at double-buffered dcs
+    wxPaintDC dc(this);
+    render(dc);
+}
+
+/*
+ * Alternatively, you can use a clientDC to paint on the panel
+ * at any time. Using this generally does not free you from
+ * catching paint events, since it is possible that e.g. the window
+ * manager throws away your drawing when the window comes to the
+ * background, and expects you will redraw it when the window comes
+ * back (by sending a paint event).
+ */
+void wxCustomButton::paintNow()
+{
+    // depending on your system you may need to look at double-buffered dcs
+    wxClientDC dc(this);
+    render(dc);
+}
+
+/*
+ * Here we do the actual rendering. I put it in a separate
+ * method so that it can work no matter what type of DC
+ * (e.g. wxPaintDC or wxClientDC) is used.
+ */
+void wxCustomButton::render(wxDC&  dc)
+{
+    //if (pressedDown)
+    //    dc.SetBrush( *wxRED_BRUSH );
+    //else
+    //    dc.SetBrush( *wxGREY_BRUSH );
+
+    int headerHeight = 20;
+    int minSize = 1; // minimum "measure" width
+
+    wxColor color;
+    wxBrush brush;
+    string caption = "Measure map";
+
+    int total;
+    if (iMeasureCount < 100) {
+        caption.append(" 4:1");
+        total = iMeasureCount / 4;
+        color.Set(255, 170 , 170);
+    }
+    else {
+        caption.append(" 8:1");
+        total = iMeasureCount / 8;
+        color = *wxRED;
+    }
+
+    //draw header
+    brush.SetColour(233,233,233);
+    dc.SetBrush(brush);
+    dc.DrawRectangle( 0, 0, buttonWidth, headerHeight+1);
+    dc.DrawText( caption, 20, 2 );
+
+    // draw "measures"
+    if (total == 0) {
+        dc.SetBrush(*wxGREY_BRUSH);
+        dc.DrawRectangle(0,headerHeight,buttonWidth,buttonHeight - headerHeight);
+    } else {
+        for (int i = 1; i <= total; i++) {
+            int curPos = (buttonWidth / total)*(i-1);
+
+            if (i == total) {// last
+                if (curPos < buttonWidth) { // if empty space left draw gray space
+                    dc.SetBrush(*wxGREY_BRUSH);
+                    dc.DrawRectangle(
+                        curPos-1 + (buttonWidth / total),
+                        headerHeight,
+                        buttonWidth - ((buttonWidth / total)*i -1),
+                        buttonHeight - headerHeight);
+                }
+            }
+
+            // draw "measure"
+            brush.SetColour(color);
+            dc.SetBrush(brush);
+            dc.DrawRectangle(
+                curPos,
+                headerHeight,
+                (i != total) ? buttonWidth / total +1 : buttonWidth / total,
+                buttonHeight - headerHeight);
+        }
+    }
+}
+
+void wxCustomButton::mouseDown(wxMouseEvent& event)
+{
+    pressedDown = true;
+    paintNow();
+}
+void wxCustomButton::mouseReleased(wxMouseEvent& event)
+{
+    pressedDown = false;
+    paintNow();
+
+    // on click code
+}
+void wxCustomButton::mouseLeftWindow(wxMouseEvent& event)
+{
+    if (pressedDown)
+    {
+        pressedDown = false;
+        paintNow();
+    }
+}
+
+// currently unused events
+void wxCustomButton::mouseMoved(wxMouseEvent& event) {}
+void wxCustomButton::mouseWheelMoved(wxMouseEvent& event) {}
+void wxCustomButton::rightClick(wxMouseEvent& event) {}
+void wxCustomButton::keyPressed(wxKeyEvent& event) {}
+void wxCustomButton::keyReleased(wxKeyEvent& event) {}
+
