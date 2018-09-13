@@ -147,6 +147,7 @@ public:
 
     void paintEvent(wxPaintEvent & evt);
     void paintNow();
+    void sizeEvent(wxSizeEvent & evt);
 
     void render(wxDC& dc);
 
@@ -177,6 +178,7 @@ wxBEGIN_EVENT_TABLE(wxCustomButton, wxPanel)
 
     // catch paint events
     EVT_PAINT(wxCustomButton::paintEvent)
+    EVT_SIZE(wxCustomButton::sizeEvent)
 
 wxEND_EVENT_TABLE()
 
@@ -238,7 +240,7 @@ bool MyApp::OnInit()
     BoxSizer4->Add(BoxSizer1);
 
     measureMap = new wxCustomButton( m_frame, "" );
-    BoxSizer4->Add(measureMap, 0, wxALL|wxALIGN_CENTER_HORIZONTAL, 5);
+    BoxSizer4->Add(measureMap, 0, wxALL|wxEXPAND, 5);
 
     m_frame->SetSizer(BoxSizer4);
     m_frame->Show(true);
@@ -738,6 +740,11 @@ void wxCustomButton::paintEvent(wxPaintEvent & evt)
     render(dc);
 }
 
+void wxCustomButton::sizeEvent(wxSizeEvent & evt)
+{
+    paintNow();
+}
+
 /*
  * Alternatively, you can use a clientDC to paint on the panel
  * at any time. Using this generally does not free you from
@@ -766,7 +773,11 @@ void wxCustomButton::render(wxDC&  dc)
     //    dc.SetBrush( *wxGREY_BRUSH );
 
     int headerHeight = 20;
+    int fullWidth = dc.GetSize().GetWidth();
+    int fullHeight = dc.GetSize().GetHeight();
     int minSize = 1; // minimum "measure" width
+
+    int zoom;
 
     wxColor color;
     wxBrush brush;
@@ -774,46 +785,51 @@ void wxCustomButton::render(wxDC&  dc)
 
     int total;
     if (iMeasureCount < 100) {
-        caption.append(" 4:1");
-        total = iMeasureCount / 4;
-        if (iMeasureCount % 4 != 0)
-            total++;
+        zoom = 4;
         color.Set(255, 170 , 170);
-    }
-    else {
-        caption.append(" 8:1");
-        total = iMeasureCount / 8;
-        if (iMeasureCount % 8 != 0)
-            total++;
+    } else {
+        zoom = 8;
         color = *wxRED;
     }
+
+    caption.append(wxString::Format(" %d:1",zoom));
+    total = iMeasureCount / zoom;
+    if (iMeasureCount % zoom != 0)
+        total++;
 
     //draw header
     brush.SetColour(233,233,233);
     dc.SetBrush(brush);
-    dc.DrawRectangle( 0, 0, buttonWidth, headerHeight+1);
+    dc.DrawRectangle( 0, 0, dc.GetSize().GetWidth(), headerHeight+1);
     dc.DrawText( caption, 20, 2 );
 
     // draw "measures"
     if (total == 0) {
         dc.SetBrush(*wxGREY_BRUSH);
-        dc.DrawRectangle(0,headerHeight,buttonWidth,buttonHeight - headerHeight);
+        dc.DrawRectangle(0,headerHeight,fullWidth,fullHeight - headerHeight);
     } else {
-        //double x = 0;
-        //cout << modf(buttonWidth / (double)total, &x) << endl;
         for (int i = 1; i <= total; i++) {
-            int curPos = (buttonWidth / total)*(i-1);
+            float curPos = (fullWidth / (float)total)*(i-1);
+            //cout << i <<". " << i % (fullWidth % total) << endl;
+            //bool noRemainder = (total / (fullWidth % total)) == 0;
+
 
             if (i == total) {// last
-                if (curPos < buttonWidth) { // if empty space left draw gray space
+                if (curPos < fullWidth) { // if empty space left draw gray space
                     dc.SetBrush(*wxGREY_BRUSH);
                     dc.DrawRectangle(
-                        curPos-1 + (buttonWidth / total),
+                        curPos-1 + (fullWidth / total),
                         headerHeight,
-                        buttonWidth - ((buttonWidth / total)*i -1),
-                        buttonHeight - headerHeight);
+                        fullWidth - ((fullWidth / total)*i -1),
+                        fullHeight - headerHeight);
                 }
             }
+
+            int measureWidth;
+            measureWidth = (i != total) ? fullWidth / total +1 : fullWidth / total;
+            if (fullWidth % total != 0)
+            if ((i % (total / (fullWidth % total) )) == 0)
+                measureWidth++;
 
             // draw "measure"
             brush.SetColour(color);
@@ -821,8 +837,19 @@ void wxCustomButton::render(wxDC&  dc)
             dc.DrawRectangle(
                 curPos,
                 headerHeight,
-                (i != total) ? buttonWidth / total +1 : buttonWidth / total,
-                buttonHeight - headerHeight);
+                measureWidth,
+                fullHeight - headerHeight);
+
+            if (i==1)
+                dc.DrawText( "1", curPos+1, headerHeight );
+            if (i==total)
+                dc.DrawText( wxString::Format("%d",iMeasureCount),
+                            curPos+measureWidth-dc.GetTextExtent(wxString::Format("%d",iMeasureCount)).GetWidth()-2,
+                            headerHeight );
+            else
+                // draw measure number in every 4th square
+                dc.DrawText( i%4?"":wxString::Format("%d",i*zoom), curPos+1, headerHeight );
+
         }
     }
 }
