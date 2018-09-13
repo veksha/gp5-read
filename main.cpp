@@ -776,11 +776,15 @@ void wxCustomButton::render(wxDC&  dc)
     if (iMeasureCount < 100) {
         caption.append(" 4:1");
         total = iMeasureCount / 4;
+        if (iMeasureCount % 4 != 0)
+            total++;
         color.Set(255, 170 , 170);
     }
     else {
         caption.append(" 8:1");
         total = iMeasureCount / 8;
+        if (iMeasureCount % 8 != 0)
+            total++;
         color = *wxRED;
     }
 
@@ -795,6 +799,8 @@ void wxCustomButton::render(wxDC&  dc)
         dc.SetBrush(*wxGREY_BRUSH);
         dc.DrawRectangle(0,headerHeight,buttonWidth,buttonHeight - headerHeight);
     } else {
+        //double x = 0;
+        //cout << modf(buttonWidth / (double)total, &x) << endl;
         for (int i = 1; i <= total; i++) {
             int curPos = (buttonWidth / total)*(i-1);
 
