@@ -7,6 +7,7 @@
 #include <wx/wx.h>
 #include <wx/dir.h>
 #include <wx/busyinfo.h>
+#include "wxMidi.h"
 
 using namespace std;
 
@@ -16,6 +17,11 @@ string formatVersions[2] = {
     "FICHIER GUITAR PRO v5.00",  // import only
     "FICHIER GUITAR PRO v5.10"}; // main format
 ImportFormat importFormat = v510;
+
+wxTimer *m_timer;
+
+wxMidiSystem*		m_pMidi;			//ptr to MIDI package
+wxMidiOutDevice*	m_pOutDev;		//ptr to current MIDI output device
 
 union CharUByte {
     char    c;
@@ -219,6 +225,65 @@ private:
     void OnDropFiles(wxDropFilesEvent& event);
 };
 
+enum
+{
+	idTimer1 = wxID_HIGHEST,
+};
+
+struct NoteStruct {
+        int n;
+        int p;
+        int d;
+        int v;
+};
+
+class RThread : public wxThread {
+
+public:
+	RThread() : wxThread(wxTHREAD_JOINABLE){	}
+	void PlayDrum(int note, int duration, int velocity)
+	{
+		m_pOutDev->NoteOn(9, note, velocity);
+		Sleep(duration);
+	}
+	void Pause(int sleep)
+	{
+		Sleep(sleep);
+	}
+	void InsertNote(int note, int position, int duration, int velocity)
+	{
+		NoteStruct n = { note, position, duration, velocity };
+		notes2play.push_back(n);
+	}
+
+private:
+	RThread(const RThread &copy);
+	vector<NoteStruct> notes2play;
+
+public:
+	void *Entry(void){
+		//do playback
+		int i = 4;
+		while (i > 0) {
+			PlayDrum(42, 400, 127);
+			i--;
+		}
+
+		return 0;
+	}
+};
+
+RThread *CreateThread() {
+    //Create thread
+    RThread *_hThread = new RThread();
+
+    //Start thread
+    _hThread->Create();
+    //_hThread->Run();
+
+    return _hThread;
+}
+
 
 class MyApp : public wxApp
 {
@@ -228,18 +293,33 @@ private:
     wxTextCtrl *txtTitle;
 
     wxCustomButton* measureMap;
+
+
+    wxDECLARE_EVENT_TABLE();
+
 public:
     void ReadGP5(string fileName);
     virtual bool OnInit();
+
+    void OnTimer1(wxTimerEvent& event);
 };
+
+
+wxBEGIN_EVENT_TABLE(MyApp, wxApp)
+    EVT_TIMER(idTimer1, MyApp::OnTimer1)
+wxEND_EVENT_TABLE()
+
 
 wxDECLARE_APP(MyApp);
 wxIMPLEMENT_APP(MyApp);
+
 
 bool MyApp::OnInit()
 {
     ////do not convert ANSI (1251) codepage to UTF-8
     UTF8mode = false;
+
+    m_timer = new wxTimer(this, idTimer1);
 
     m_frame = new MyFrame();
 
@@ -274,17 +354,38 @@ bool MyApp::OnInit()
     m_frame->SetSizer(BoxSizer4);
     m_frame->Show(true);
 
-    wxString msg;
 
-    if (argc < 2)
-    {
-        msg = "Hello. Please, drag and drop GP5 file or specify it via command line parameter."; cout << msg << endl; m_frame->SetStatusText(msg);
-        return true;
-    }
+	//m_pMidi = wxMidiSystem::GetInstance();	// do I need this now?
+	m_pOutDev = new wxMidiOutDevice(0);		// 0 - index of the MIDI device
+	wxMidiError nErr = m_pOutDev->Open(0);		// 0 - latency
 
-    ReadGP5((string)argv[1]);
+	wxThread *play = CreateThread();
+	play->Run();
 
-    return true;
+	wxString msg;
+
+	if (nErr) {
+		msg.Printf("Error %d in Open: %s",
+			nErr, m_pMidi->GetErrorText(nErr));
+
+	}
+	else {
+		msg.Printf("Output device '%s' sucessfully opened.",
+			m_pOutDev->DeviceName());
+	}
+	cout << msg << endl;
+
+	if (argc < 2)
+	{
+		msg = "Hello. Please, drag and drop GP5 file or "
+			"specify it via command line parameter.";
+		cout << msg << endl; m_frame->SetStatusText(msg);
+		return true;
+	}
+
+	ReadGP5((string)argv[1]);
+
+	return true;
 }
 
 void MyApp::ReadGP5(string fileName)
@@ -771,6 +872,7 @@ void MyApp::ReadGP5(string fileName)
 	}
 
 
+	//m_timer->Start(30);
 }
 
 MyFrame::MyFrame()
@@ -995,6 +1097,18 @@ void wxCustomButton::mouseLeftWindow(wxMouseEvent& event)
         paintNow();
     }
 }
+
+void MyApp::OnTimer1(wxTimerEvent& event)
+{
+    /*currentMeasure++;
+    if (currentMeasure > total) {
+        //currentMeasure = 0;
+        m_timer->Stop();
+    }
+
+    measureMap->paintNow();*/
+}
+
 
 // currently unused events
 void wxCustomButton::mouseMoved(wxMouseEvent& event) {}

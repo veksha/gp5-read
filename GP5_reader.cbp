@@ -12,6 +12,7 @@
 				<Option type="1" />
 				<Option compiler="gcc" />
 				<Option use_console_runner="0" />
+				<Option projectLinkerOptionsRelation="2" />
 				<Compiler>
 					<Add option="-g" />
 					<Add directory="../wxWidgets-git/lib/gcc_lib/mswud" />
@@ -24,17 +25,6 @@
 					<Add library="wxpngd" />
 					<Add library="wxzlibd" />
 					<Add library="wxregexud" />
-					<Add library="uuid" />
-					<Add library="gdi32" />
-					<Add library="comdlg32" />
-					<Add library="winspool" />
-					<Add library="comctl32" />
-					<Add library="ole32" />
-					<Add library="shlwapi" />
-					<Add library="oleaut32" />
-					<Add library="version" />
-					<Add library="oleacc" />
-					<Add library="uxtheme" />
 				</Linker>
 			</Target>
 			<Target title="Release">
@@ -42,6 +32,7 @@
 				<Option object_output="obj/Release/" />
 				<Option type="0" />
 				<Option compiler="gcc" />
+				<Option projectLinkerOptionsRelation="2" />
 				<Compiler>
 					<Add option="-O2" />
 					<Add option="-DNDEBUG" />
@@ -56,26 +47,16 @@
 					<Add library="wxpng" />
 					<Add library="wxzlib" />
 					<Add library="wxregexu" />
-					<Add library="uuid" />
-					<Add library="gdi32" />
-					<Add library="comdlg32" />
-					<Add library="winspool" />
-					<Add library="comctl32" />
-					<Add library="ole32" />
-					<Add library="shlwapi" />
-					<Add library="oleaut32" />
-					<Add library="version" />
-					<Add library="oleacc" />
-					<Add library="uxtheme" />
 				</Linker>
 			</Target>
 		</Build>
 		<Compiler>
-			<Add option="-fexceptions" />
 			<Add option="-std=c++11" />
+			<Add option="-fexceptions -pthread" />
 			<Add option="-D__WXMSW__" />
 			<Add option="-D_UNICODE" />
 			<Add directory="../wxWidgets-git/include" />
+			<Add directory="include" />
 		</Compiler>
 		<ResourceCompiler>
 			<Add directory="../wxWidgets-git/include" />
@@ -84,8 +65,25 @@
 			<Add option="-static-libstdc++" />
 			<Add option="-static-libgcc" />
 			<Add option="-static" />
+			<Add library="uuid" />
+			<Add library="gdi32" />
+			<Add library="comdlg32" />
+			<Add library="winspool" />
+			<Add library="comctl32" />
+			<Add library="ole32" />
+			<Add library="shlwapi" />
+			<Add library="oleaut32" />
+			<Add library="version" />
+			<Add library="oleacc" />
+			<Add library="uxtheme" />
+			<Add library="portmidi_s" />
+			<Add library="porttime" />
+			<Add library="winmm" />
 			<Add directory="../wxWidgets-git/lib/gcc_lib" />
+			<Add directory="lib" />
 		</Linker>
+		<Unit filename="include/wxMidi.cpp" />
+		<Unit filename="include/wxMidiDatabase.cpp" />
 		<Unit filename="main.cpp" />
 		<Extensions>
 			<code_completion />
