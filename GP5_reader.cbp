@@ -72,6 +72,7 @@
 		</Build>
 		<Compiler>
 			<Add option="-fexceptions" />
+			<Add option="-std=c++11" />
 			<Add option="-D__WXMSW__" />
 			<Add option="-D_UNICODE" />
 			<Add directory="../wxWidgets-git/include" />

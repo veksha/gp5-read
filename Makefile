@@ -12,7 +12,7 @@ LD = g++.exe
 WINDRES = windres.exe
 
 INC = -I$(WXWIDGETS_INCLUDE_DIR)
-CFLAGS = -fexceptions -D__WXMSW__ -D_UNICODE
+CFLAGS = -std=c++11 -fexceptions -D__WXMSW__ -D_UNICODE
 RESINC = 
 LIBDIR = -L$(WXWIDGETS_LIBS_DIR)
 LIB = 
