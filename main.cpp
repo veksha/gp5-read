@@ -47,6 +47,9 @@ struct IntIntTextItem {
 vector<IntIntTextItem> lyrics;
 vector<IntIntTextItem> vTracks;
 int iNoteCount, iMeasureCount = 0;
+int currentMeasure = 1;
+int zoom = 4;
+int total = 0;
 
 string readIntByteText() {
     string result;
@@ -225,6 +228,7 @@ bool MyApp::OnInit()
     txtTitle = new wxTextCtrl(m_frame, wxID_ANY, "", wxDefaultPosition, wxSize(350,22));
 
     m_frame->SetSize(wxSize(600, 300));
+    m_frame->SetMinSize(wxSize(300, 230));
     m_frame->Centre();
 
     wxBoxSizer *BoxSizer1 = new wxBoxSizer(wxHORIZONTAL);
@@ -385,6 +389,7 @@ void MyApp::ReadGP5(string fileName)
     inFile.read(length4.c, 4); int tracks = length4.i;           cout << "Tracks: " << tracks << endl;
 
     iMeasureCount = measures;
+    currentMeasure = 0;
 
     // Read measure headers
     for (int i = 0; i < measures; i++) {
@@ -671,11 +676,12 @@ void MyApp::ReadGP5(string fileName)
             inFile.seekg(1,ios_base::cur); // unknown
         }
     }
-    //done reading file;
-    inFile.close();
-    msg = wxString::Format("Done. Note count: %d",iNoteCount); cout << msg << endl; m_frame->SetStatusText(msg);
+	// done reading file;
+	inFile.close();
+	msg = wxString::Format("Done. Note count: %d",iNoteCount);
+	cout << msg << endl; m_frame->SetStatusText(msg);
 
-    measureMap->paintNow();
+	measureMap->paintNow();
 }
 
 MyFrame::MyFrame()
@@ -777,18 +783,21 @@ void wxCustomButton::render(wxDC&  dc)
     int fullHeight = dc.GetSize().GetHeight();
     int minSize = 1; // minimum "measure" width
 
-    int zoom;
-
     wxColor color;
     wxBrush brush;
     string caption = "Measure map";
 
-    int total;
+
+    if (iMeasureCount < 20) {
+        zoom = 1;
+        color.Set(255, 170 , 170);
+    }
+    else
     if (iMeasureCount < 100) {
         zoom = 4;
         color.Set(255, 170 , 170);
     } else {
-        zoom = 8;
+        zoom = 20;
         color = *wxRED;
     }
 
@@ -803,18 +812,37 @@ void wxCustomButton::render(wxDC&  dc)
     dc.DrawRectangle( 0, 0, dc.GetSize().GetWidth(), headerHeight+1);
     dc.DrawText( caption, 20, 2 );
 
+
+    dc.SetBrush(*wxGREY_BRUSH);
+                    dc.DrawRectangle(
+                        0,
+                        headerHeight,
+                        fullWidth,
+                        fullHeight - headerHeight);
+
     // draw "measures"
-    if (total == 0) {
+    if (total == 0 /*|| currentMeasure == 0*/) {
         dc.SetBrush(*wxGREY_BRUSH);
         dc.DrawRectangle(0,headerHeight,fullWidth,fullHeight - headerHeight);
     } else {
-        for (int i = 1; i <= total; i++) {
-            float curPos = (fullWidth / (float)total)*(i-1);
-            //cout << i <<". " << i % (fullWidth % total) << endl;
-            //bool noRemainder = (total / (fullWidth % total)) == 0;
+        for (int i = 0; i < total; i++) {
 
+            /*if (m_timer->IsRunning())
+                if (i != currentMeasure)
+                    continue;*/
 
-            if (i == total) {// last
+            int measureWidth;
+            measureWidth = 30;
+
+            bool i_parity = i % 2 == 0;
+            bool total_parity = total % 2 == 0;
+
+            int offset = (i+1)/2 * measureWidth;
+            if (i_parity)
+                offset = -offset;
+            int curPos = (fullWidth / 2) - measureWidth/(total_parity?1:2) + offset;
+
+            /*if (i == total) {// last
                 if (curPos < fullWidth) { // if empty space left draw gray space
                     dc.SetBrush(*wxGREY_BRUSH);
                     dc.DrawRectangle(
@@ -823,13 +851,7 @@ void wxCustomButton::render(wxDC&  dc)
                         fullWidth - ((fullWidth / total)*i -1),
                         fullHeight - headerHeight);
                 }
-            }
-
-            int measureWidth;
-            measureWidth = (i != total) ? fullWidth / total +1 : fullWidth / total;
-            if (fullWidth % total != 0)
-            if ((i % (total / (fullWidth % total) )) == 0)
-                measureWidth++;
+            }*/
 
             // draw "measure"
             brush.SetColour(color);
@@ -837,19 +859,29 @@ void wxCustomButton::render(wxDC&  dc)
             dc.DrawRectangle(
                 curPos,
                 headerHeight,
-                measureWidth,
+                measureWidth+1,
                 fullHeight - headerHeight);
 
-            if (i==1)
-                dc.DrawText( "1", curPos+1, headerHeight );
-            if (i==total)
+            if (i==total-1) // last
+            {
+                    int n = 1;
+                    int curPosAbsolute = (fullWidth / 2) - (measureWidth/(total_parity?1:2) + measureWidth * (total/2-n+(total_parity?0:1)));
+
+                    if (total != 1)
+                            dc.DrawText( "1", curPosAbsolute+2, headerHeight );
+
+                    n = total;
+                    curPosAbsolute = (fullWidth / 2) - (measureWidth/(total_parity?1:2) + measureWidth * (total/2-n+(total_parity?0:1)));
+                    dc.DrawText(wxString::Format("%d",iMeasureCount), curPosAbsolute+2, headerHeight );
+            }
+            /*if (i==total)
                 dc.DrawText( wxString::Format("%d",iMeasureCount),
                             curPos+measureWidth-dc.GetTextExtent(wxString::Format("%d",iMeasureCount)).GetWidth()-2,
                             headerHeight );
             else
                 // draw measure number in every 4th square
                 dc.DrawText( i%4?"":wxString::Format("%d",i*zoom), curPos+1, headerHeight );
-
+            */
         }
     }
 }
@@ -881,4 +913,6 @@ void wxCustomButton::mouseWheelMoved(wxMouseEvent& event) {}
 void wxCustomButton::rightClick(wxMouseEvent& event) {}
 void wxCustomButton::keyPressed(wxKeyEvent& event) {}
 void wxCustomButton::keyReleased(wxKeyEvent& event) {}
+
+
 
