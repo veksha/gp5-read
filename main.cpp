@@ -19,7 +19,7 @@ ImportFormat importFormat = v510;
 
 union CharUByte {
     char    c;
-    uint8_t b;
+    int8_t b;
 };
 
 union CharInt {
@@ -44,23 +44,48 @@ struct IntIntTextItem {
     int i2;
     string text;
 };
+
+struct BeatStruct {
+	int note_string;
+        int note_fret;
+        int duration;
+};
+
+struct VoiceStruct {
+	vector<BeatStruct> beats;
+};
+
+struct MeasureStruct {
+	vector<VoiceStruct> voices;
+};
+
+struct TrackStruct {
+	int stringCount;
+	int midiChannel;
+	string name;
+	vector<MeasureStruct> measures;
+};
+
 vector<IntIntTextItem> lyrics;
-vector<IntIntTextItem> vTracks;
+vector<TrackStruct> vTracks;
+vector<int> fileMidiData; // storing only instrument for now
+
 int iNoteCount, iMeasureCount = 0;
 int currentMeasure = 1;
 int zoom = 4;
 int total = 0;
 
-string readIntByteText() {
-    string result;
-    inFile.read(length4.c, 4);
-    inFile.read(&length1.c, 1);
-    if (length1.b > 0) {
-        result.resize(length1.b);
-        inFile.read((char *)&result[0], length1.b);
-        return result;
-    }
-    else return "";
+string readIntByteText()
+{
+	string result;
+	inFile.read(length4.c, 4);
+	inFile.read(&length1.c, 1);
+	if (length1.b > 0) {
+		result.resize(length1.b);
+		inFile.read((char *)&result[0], length1.b);
+		return result;
+	}
+	else return "";
 }
 
 IntIntTextItem readIntIntText() {
@@ -375,12 +400,14 @@ void MyApp::ReadGP5(string fileName)
     inFile.read(length4.c, 4); int key = length4.i;             //cout << "Key: " << key << endl;
     inFile.read(&length1.c, 1); uint8_t octave = length1.b;     //cout << "Octave: " << +octave << endl;
 
-    // Read MIDI data
-    for (int i = 0; i < 64; i++) {
-        inFile.seekg(4,ios_base::cur); // int - Instrument
-        inFile.seekg(6,ios_base::cur); // 6 bytes - Volume Balance Chorus Reverb Phaser Tremolo
-        inFile.seekg(2,ios_base::cur); // unknown
-    }
+	// Read MIDI data
+	fileMidiData.clear();
+	for (int i = 0; i < 64; i++) {
+		inFile.read(length4.c, 4); int instrument = length4.i;
+		fileMidiData.push_back(instrument);
+		inFile.seekg(6,ios_base::cur); // 6 bytes - Volume Balance Chorus Reverb Phaser Tremolo
+		inFile.seekg(2,ios_base::cur); // unknown
+	}
 
     inFile.seekg(42,ios_base::cur);
 
@@ -429,7 +456,7 @@ void MyApp::ReadGP5(string fileName)
     }
 
     // Read tracks
-    IntIntTextItem track;
+    TrackStruct track = {};
 
     int stringCount, tuning;
     for (int i = 1; i <= tracks; i++) {
@@ -443,26 +470,31 @@ void MyApp::ReadGP5(string fileName)
                 inFile.seekg(1,ios_base::cur);  // unknown
         }
 
-        inFile.read(&length1.c, 1); // track name string length
-        track.text.resize(40);
-        inFile.read((char*)&track.text[0], 40);
-        cout << "  " << i << ". " << track.text << endl;
+		inFile.read(&length1.c, 1); // track name string length
+		track.name.resize(40);
+		inFile.read((char*)&track.name[0], 40);
+		//cout << "  " << i << ". " << track.text << endl;
+		wxString trackName = track.name;
+		track.name = trackName.Trim();	// trim whitespace from track names
 
-        inFile.read(length4.c, 4); stringCount = length4.i;
-        track.i1 = stringCount;
-        vTracks.push_back(track);
+		inFile.read(length4.c, 4); stringCount = length4.i;
+		track.stringCount = stringCount;
+
         for (int j = 0; j < 7; j++) {
             inFile.read(length4.c, 4); tuning = length4.i;
         }
         inFile.seekg(4,ios_base::cur); // unknown
 
-        //read channel
-        inFile.seekg(4,ios_base::cur); // int iIndex;
-        inFile.seekg(4,ios_base::cur); // int iEffectChannel;
-        inFile.seekg(4,ios_base::cur); // int iInt;
-        inFile.seekg(4,ios_base::cur); // int iTrackOffset;
-        inFile.seekg(3,ios_base::cur); // 3 bytes - RGB
-        inFile.seekg(1,ios_base::cur); // unknown
+		//read channel
+		inFile.read(length4.c, 4); int channelIndex = length4.i;
+		track.midiChannel = channelIndex;
+		vTracks.push_back(track);
+		inFile.read(length4.c, 4); int iEffectChannel = length4.i;
+		inFile.read(length4.c, 4); int iNumberOfFrets = length4.i;
+		inFile.read(length4.c, 4); int iTrackOffset = length4.i;
+
+		inFile.seekg(3,ios_base::cur); // 3 bytes - RGB
+		inFile.seekg(1,ios_base::cur); // unknown
 
         if (importFormat == v500) {
             inFile.seekg(44,ios_base::cur); // unknown
@@ -486,17 +518,29 @@ void MyApp::ReadGP5(string fileName)
         for (int j = 0; j < tracks; j++) {
             //Read measure
             //printf("Measure: %d\n",i);
+            MeasureStruct measure = {};
             for (int voice = 0; voice < 2; voice++) {
+			if (voice == 1)
+			{
+			}
+
                 inFile.read(length4.c, 4); int beats = length4.i;
+                //printf("Voice: %d\n",voice);
+                VoiceStruct v = {};
                 for (int k = 0; k < beats; k++) {
                     //Read beat
-                    //printf("Beat: %d, voice: %d\n",k,voice);
-                    inFile.read(&length1.c, 1); uint8_t flags = length1.b;     //cout << "flags: " << std::bitset<8>(flags) << endl;
+                    //if (voice == 0)
+			//printf("\tBeat: %d\n",k);
+		    BeatStruct b = {};
+
+                    inFile.read(&length1.c, 1); uint8_t flags = length1.b;
+                    //cout << "flags: " << std::bitset<8>(flags) << endl;
                     if ((flags & 0x40) != 0) {
                         inFile.read(&length1.c, 1); uint8_t beatType = length1.b;
                     }
                     //Read duration
-                    inFile.read(&length1.c, 1); uint8_t duration = length1.b;
+                    inFile.read(&length1.c, 1); int8_t duration = length1.b;
+                    b.duration = pow(2, (duration + 4)) / 4;
                     if ((flags & 0x20) != 0) {
                         inFile.read(length4.c, 4); int divisionType = length4.i;
                     }
@@ -584,9 +628,11 @@ void MyApp::ReadGP5(string fileName)
 
                     inFile.read(&length1.c, 1); uint8_t stringFlags = length1.b;
                     for (int m = 6; m >= 0; m--) {
-                        if ((stringFlags & (1 << m)) != 0 && (6 - m) < vTracks[j].i1) {
+                        if ((stringFlags & (1 << m)) != 0 && (6 - m) < vTracks[j].stringCount) {
                             //Read note
-                            //printf("note on %d string, ",m);
+                            //if (voice == 0)
+				//printf("\tnote on %d string, ",m);
+			    b.note_string = m;
                             iNoteCount++;
                             inFile.read(&length1.c, 1); uint8_t flags = length1.b;     //cout << "flags: " << std::bitset<8>(flags) << endl;
                             if ((flags & 0x20) != 0) {
@@ -597,7 +643,9 @@ void MyApp::ReadGP5(string fileName)
                             }
                             if ((flags & 0x20) != 0) {
                                 inFile.read(&length1.c, 1); uint8_t fret = length1.b;
-                                //printf("on %d fret\n",fret);
+				//if (voice == 0)
+					//printf("\ton %d fret\n",fret);
+				b.note_fret = fret;
                             }
                             if ((flags & 0x80) != 0) {
                                 inFile.seekg(2,ios_base::cur); // unknown
@@ -671,9 +719,15 @@ void MyApp::ReadGP5(string fileName)
                     if ((bRead & 0x08) != 0) {
                         inFile.seekg(1,ios_base::cur); // unknown
                     }
+		    // add beat to voice
+		    v.beats.push_back(b);
                 }
+                // add voice to measure
+                measure.voices.push_back(v);
             }
-            inFile.seekg(1,ios_base::cur); // unknown
+		inFile.seekg(1,ios_base::cur); // unknown
+		// add measure to track
+		vTracks[j].measures.push_back(measure);
         }
     }
 	// done reading file;
@@ -682,6 +736,41 @@ void MyApp::ReadGP5(string fileName)
 	cout << msg << endl; m_frame->SetStatusText(msg);
 
 	measureMap->paintNow();
+
+	int guitarTrack = 0;
+
+        // print out track names and instruments
+        int i = 0;
+        for (TrackStruct& t : vTracks) {
+		i++;
+                cout << i << ". " << t.name << endl;
+                switch (fileMidiData[t.midiChannel-1]) {
+			case 0:
+				cout << "\tDrum kit" << endl;
+				break;
+                        case 30:
+                        	cout << "\tDistortion Guitar" << endl;
+                        	guitarTrack = i;
+				break;
+			case 34:
+                        	cout << "\tElectric bass (pick)" << endl;
+				break;
+			default:
+				break;
+		}
+	}
+
+
+        // play guitar :)
+	for (MeasureStruct& measure : vTracks[0].measures) {
+		for (BeatStruct& beat : measure.voices[0].beats) {
+			//cout << beat.note_fret << " (duration: " << beat.duration << "), " << endl;
+
+		}
+
+	}
+
+
 }
 
 MyFrame::MyFrame()
