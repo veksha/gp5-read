@@ -1,0 +1,16 @@
+CFLAGS = -std=c++11 -fexceptions -pthread -D_UNICODE
+LIB = -lportmidi
+
+all: GP5_reader
+
+GP5_reader: obj/Release/main.o
+	mkdir -p bin/Release
+	g++ -o bin/Release/GP5_reader obj/Release/main.o obj/Release/wxMidi.o obj/Release/wxMidiDatabase.o  `wx-config --toolkit=gtk3 --libs` $(LIB)
+
+obj/Release/main.o obj/Release/wxMidi.o obj/Release/wxMidiDatabase.o:
+	mkdir -p obj/Release
+	g++ $(CFLAGS) -c `wx-config --toolkit=gtk3 --cxxflags` -Iinclude include/wxMidiDatabase.cpp -o obj/Release/wxMidiDatabase.o
+	g++ $(CFLAGS) -c `wx-config --toolkit=gtk3 --cxxflags` -Iinclude include/wxMidi.cpp -o obj/Release/wxMidi.o
+	g++ $(CFLAGS) -c `wx-config --toolkit=gtk3 --cxxflags` -Iinclude main.cpp -o obj/Release/main.o
+
+
