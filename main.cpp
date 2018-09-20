@@ -20,7 +20,7 @@ ImportFormat importFormat = v510;
 
 wxTimer *m_timer;
 
-wxMidiSystem*		m_pMidi;			//ptr to MIDI package
+wxMidiSystem*	m_pMidi;			//ptr to MIDI package
 wxMidiOutDevice*	m_pOutDev;		//ptr to current MIDI output device
 
 union CharUByte {
@@ -355,8 +355,27 @@ bool MyApp::OnInit()
     m_frame->Show(true);
 
 
-	//m_pMidi = wxMidiSystem::GetInstance();	// do I need this now?
+	m_pMidi = wxMidiSystem::GetInstance();
+	int midiCount = m_pMidi->CountDevices();
+	int lastOutPort = 0;
+	for (int i=0; i<midiCount; i++) {
+		wxMidiOutDevice pMidiDev(i);
+		if (pMidiDev.IsOutputPort()) {
+			lastOutPort = i;
+//			cout << i << ". out" << endl;
+		}
+//		else
+//		if (pMidiDev.IsInputPort())
+//			cout << i << ". in" << endl;
+	}
+
+	#ifdef __WINDOWS__
+	// open first output on Windows
 	m_pOutDev = new wxMidiOutDevice(0);		// 0 - index of the MIDI device
+	#else
+	// open last output on linux
+	m_pOutDev = new wxMidiOutDevice(lastOutPort);
+	#endif // __WINDOWS__
 	wxMidiError nErr = m_pOutDev->Open(0);		// 0 - latency
 
 	wxThread *play = CreateThread();
